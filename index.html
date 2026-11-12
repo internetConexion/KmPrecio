@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Consulta Precio</title>
+
+<!-- Favicon e imagen OG para WhatsApp (Invisible en la web, visible al compartir y en la pestaña) -->
+<link rel="icon" type="image/jpeg" href="AQUI_PEGA_EL_ENLACE_DIRECTO_DE_TU_IMAGEN.jpg">
+<meta property="og:image" content="AQUI_PEGA_EL_ENLACE_DIRECTO_DE_TU_IMAGEN.jpg">
+<meta property="og:title" content="Consulta Precio • RUTA+">
+<meta property="og:description" content="Calcula automáticamente la distancia y el precio de tus recorridos y entregas.">
+<meta property="og:type" content="website">
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+<style>
+:root{
+  --fondo:#e7e7e3;
+  --panel:#f8f8f5;
+  --texto:#252525;
+  --gris:#707070;
+  --borde:#d6d6d0;
+  --oscuro:#292929;
+  --verde:#23834b;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--fondo);
+  color:var(--texto);
+  font-family:Arial,sans-serif;
+  min-height:100vh;
+}
+.app{
+  width:100%;
+  max-width:520px;
+  margin:auto;
+  padding:12px;
+}
+header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:10px;
+}
+.logo{
+  font-size:19px;
+  font-weight:900;
+}
+.logo span{color:var(--verde)}
+.tag{
+  font-size:10px;
+  color:var(--gris);
+  letter-spacing:1px;
+}
+.ticker{
+  background:var(--oscuro);
+  color:white;
+  border-radius:8px;
+  overflow:hidden;
+  white-space:nowrap;
+  padding:9px 0;
+  margin-bottom:10px;
+  font-size:12px;
+  font-weight:bold;
+}
+.ticker div{
+  display:inline-block;
+  padding-left:100%;
+  animation:desplazar 18s linear infinite;
+}
+@keyframes desplazar{
+  from{transform:translateX(0)}
+  to{transform:translateX(-100%)}
+}
+.panel{
+  background:var(--panel);
+  border:1px solid var(--borde);
+  border-radius:15px;
+  padding:13px;
+  box-shadow:0 4px 15px #00000008;
+}
+.slideshow{
+  position:relative;
+  overflow:hidden;
+  border-radius:11px;
+  background:#eeeeea;
+  min-height:83px;
+  margin-bottom:12px;
+}
+.slide{
+  display:none;
+  padding:12px 14px;
+  min-height:83px;
+  align-items:center;
+  gap:12px;
+}
+.slide.active{display:flex}
+.slide-icon{
+  width:48px;
+  height:48px;
+  flex-shrink:0;
+  display:grid;
+  place-items:center;
+  border-radius:12px;
+  background:#fff;
+  font-size:25px;
+}
+.slide h3{
+  font-size:13px;
+  margin:0 0 4px;
+}
+.slide p{
+  font-size:11px;
+  color:#686868;
+  margin:0;
+  line-height:1.4;
+}
+.dots{
+  position:absolute;
+  bottom:5px;
+  right:10px;
+  display:flex;
+  gap:4px;
+}
+.dot{
+  width:5px;
+  height:5px;
+  border-radius:50%;
+  background:#bdbdb7;
+}
+.dot.active{background:var(--verde)}
+.maps{
+  width:100%;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:8px;
+  background:var(--oscuro);
+  color:white;
+  border:0;
+  border-radius:10px;
+  padding:13px;
+  font-size:13px;
+  font-weight:bold;
+  cursor:pointer;
+  margin-bottom:12px;
+}
+.section-title{
+  font-size:11px;
+  font-weight:bold;
+  color:var(--gris);
+  letter-spacing:1px;
+  margin:12px 0 8px;
+}
+.upload{
+  display:block;
+  border:2px dashed #bdbdb5;
+  border-radius:12px;
+  padding:17px 10px;
+  text-align:center;
+  cursor:pointer;
+  background:#f0f0ec;
+}
+.upload strong{
+  display:block;
+  font-size:13px;
+  margin-bottom:5px;
+}
+.upload small{
+  color:var(--gris);
+  font-size:11px;
+}
+#fileInput{display:none}
+.preview-wrap{
+  display:none;
+  position:relative;
+  margin-top:10px;
+  border-radius:10px;
+  overflow:hidden;
+  background:#ddd;
+}
+#preview{
+  width:100%;
+  display:block;
+  max-height:260px;
+  object-fit:contain;
+  cursor:pointer;
+}
+.ocr-overlay{
+  display:none;
+  position:absolute;
+  inset:0;
+  background:#0009;
+  color:white;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  gap:9px;
+  font-size:13px;
+  font-weight:bold;
+}
+.spinner{
+  width:28px;
+  height:28px;
+  border:3px solid #ffffff55;
+  border-top-color:white;
+  border-radius:50%;
+  animation:girar .8s linear infinite;
+}
+@keyframes girar{to{transform:rotate(360deg)}}
+.progress{
+  width:65%;
+  height:5px;
+  background:#ffffff55;
+  border-radius:10px;
+  overflow:hidden;
+}
+#progressBar{
+  width:0%;
+  height:100%;
+  background:#55d78b;
+}
+.reset{
+  display:none;
+  width:100%;
+  border:1px solid var(--borde);
+  background:transparent;
+  color:#555;
+  border-radius:8px;
+  padding:9px;
+  font-size:11px;
+  font-weight:bold;
+  margin-top:7px;
+  cursor:pointer;
+}
+.km-label{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-size:12px;
+  font-weight:bold;
+  margin-bottom:7px;
+}
+.optional{
+  font-size:10px;
+  color:var(--gris);
+  font-weight:normal;
+}
+input[type=number]{
+  width:100%;
+  padding:13px;
+  border:1px solid var(--borde);
+  border-radius:9px;
+  background:white;
+  font-size:17px;
+  outline:none;
+}
+input:focus{border-color:var(--verde)}
+.calculate{
+  width:100%;
+  border:0;
+  background:var(--verde);
+  color:white;
+  padding:15px;
+  border-radius:10px;
+  margin-top:12px;
+  font-size:14px;
+  font-weight:bold;
+  cursor:pointer;
+}
+.calculate:active,.maps:active{transform:scale(.99)}
+.note{
+  font-size:10px;
+  color:var(--gris);
+  text-align:center;
+  margin:10px 0 0;
+  line-height:1.5;
+}
+footer{
+  text-align:center;
+  padding:12px 0 5px;
+  font-size:10px;
+  color:#858580;
+}
+.modal{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:20;
+  background:#0009;
+  padding:18px;
+  align-items:center;
+  justify-content:center;
+}
+.modal.show{display:flex}
+.modal-box{
+  width:100%;
+  max-width:390px;
+  background:var(--panel);
+  border-radius:17px;
+  padding:18px;
+  box-shadow:0 15px 50px #0004;
+}
+.modal-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:15px;
+}
+.modal-head strong{font-size:15px}
+.close{
+  width:30px;
+  height:30px;
+  border:0;
+  border-radius:50%;
+  background:#e8e8e3;
+  font-size:18px;
+  cursor:pointer;
+}
+.result-card{
+  background:#eeeeea;
+  padding:17px;
+  border-radius:12px;
+  text-align:center;
+}
+.result-card small{
+  color:var(--gris);
+  font-size:11px;
+}
+.result-km{
+  font-size:17px;
+  font-weight:bold;
+  margin:8px 0 14px;
+}
+.result-price{
+  font-size:32px;
+  font-weight:900;
+  color:var(--verde);
+}
+.result-message{
+  display:none;
+  background:#fff0df;
+  border:1px solid #edc38f;
+  color:#8b4b12;
+  padding:15px;
+  border-radius:10px;
+  text-align:center;
+  font-size:14px;
+  line-height:1.5;
+  font-weight:bold;
+}
+.share{
+  width:100%;
+  border:0;
+  background:var(--verde);
+  color:white;
+  padding:13px;
+  border-radius:9px;
+  font-weight:bold;
+  margin-top:12px;
+  cursor:pointer;
+}
+.share:disabled{opacity:.6}
+.close-bottom{
+  width:100%;
+  border:1px solid var(--borde);
+  background:transparent;
+  color:#555;
+  padding:12px;
+  border-radius:9px;
+  margin-top:8px;
+  font-weight:bold;
+  cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+<div class="app">
+
+<header>
+  <div class="logo">RUTA<span>+</span></div>
+  <div class="tag">CALCULADORA DE RECORRIDOS</div>
+</header>
+
+<div class="ticker">
+  <div>
+    📍 CARGA TU CAPTURA &nbsp; • &nbsp;
+    🔎 RECONOCIMIENTO AUTOMÁTICO &nbsp; • &nbsp;
+    🛵 CALCULA EL PRECIO DE TU RUTA &nbsp; • &nbsp;
+    📲 COMPARTE EL RESULTADO
+  </div>
+</div>
+
+<main class="panel">
+
+  <div class="slideshow">
+    <div class="slide active">
+      <div class="slide-icon">📸</div>
+      <div>
+        <h3>1. Carga la captura</h3>
+        <p>Selecciona una imagen del recorrido para reconocer la información automáticamente.</p>
+      </div>
+    </div>
+
+    <div class="slide">
+      <div class="slide-icon">🔎</div>
+      <div>
+        <h3>2. Reconocimiento automático</h3>
+        <p>La aplicación analiza la captura e intenta identificar la distancia del recorrido.</p>
+      </div>
+    </div>
+
+    <div class="slide">
+      <div class="slide-icon">🛣️</div>
+      <div>
+        <h3>3. Ingresa los kilómetros</h3>
+        <p>Si lo deseas, puedes escribir manualmente la distancia. Este dato tendrá prioridad.</p>
+      </div>
+    </div>
+
+    <div class="slide">
+      <div class="slide-icon">📲</div>
+      <div>
+        <h3>4. Comparte el resultado</h3>
+        <p>Obtén el resumen de la ruta y comparte la imagen con el precio.</p>
+      </div>
+    </div>
+
+    <div class="dots">
+      <span class="dot active"></span>
+      <span class="dot"></span>
+      <span class="dot"></span>
+      <span class="dot"></span>
+    </div>
+  </div>
+
+  <button class="maps" onclick="openMaps()">
+    <span>📍</span> ABRIR GOOGLE MAPS
+  </button>
+
+  <div class="section-title">CAPTURA DEL RECORRIDO</div>
+
+  <label class="upload" for="fileInput">
+    <strong>＋ CARGAR CAPTURA</strong>
+    <small>Selecciona una imagen para reconocer la ruta</small>
+  </label>
+
+  <input type="file" id="fileInput" accept="image/*">
+
+  <div class="preview-wrap" id="previewWrap">
+    <img id="preview" alt="Captura del recorrido" onclick="openImage()">
+
+    <div class="ocr-overlay" id="ocrOverlay">
+      <div class="spinner"></div>
+      <span id="ocrText">Reconociendo imagen...</span>
+      <div class="progress">
+        <div id="progressBar"></div>
+      </div>
+    </div>
+  </div>
+
+  <button class="reset" id="resetBtn" onclick="resetApp()">↻ REINICIAR</button>
+
+  <div class="section-title">DISTANCIA DEL RECORRIDO</div>
+
+  <div class="km-label">
+    <span>Kilómetros (km)</span>
+    <span class="optional">Opcional · puedes escribirlos</span>
+  </div>
+
+  <input type="number" id="kmInput" min="0.1" max="999" step="0.1" placeholder="Ejemplo: 8.5">
+
+  <button class="calculate" onclick="calculate()">CALCULAR PRECIO DE LA RUTA</button>
+
+  <p class="note">
+    Si no escribes los kilómetros, se utilizará la distancia detectada en la captura.
+  </p>
+
+</main>
+
+<footer>RUTA+ · HERRAMIENTA DE CÁLCULO DE RECORRIDOS</footer>
+</div>
+
+<div class="modal" id="resultModal">
+  <div class="modal-box">
+
+    <div class="modal-head">
+      <strong>RESUMEN DEL RECORRIDO</strong>
+      <button class="close" onclick="closeModal()">×</button>
+    </div>
+
+    <div class="result-card" id="resultCard">
+      <small>DISTANCIA DEL RECORRIDO</small>
+      <div class="result-km" id="resultKm">0 km</div>
+      <small>PRECIO TOTAL DE LA RUTA</small>
+      <div class="result-price" id="resultPrice">$0</div>
+    </div>
+
+    <div class="result-message" id="overLimit">
+      ⚠️ Fuera de rango.<br><br>
+      Consulta la tarifa directamente con el domiciliario.
+    </div>
+
+    <button class="share" id="shareBtn" onclick="shareResult()">
+      COMPARTIR IMAGEN
+    </button>
+
+    <button class="close-bottom" onclick="closeModal()">CERRAR</button>
+  </div>
+</div>
+
+<script>
+let imageData = null;
+let ocrDistance = null;
+let currentDistance = null;
+let currentPrice = null;
+let ocrText = "";
+let slideshowIndex = 0;
+
+const slides = document.querySelectorAll(".slide");
+const dots = document.querySelectorAll(".dot");
+
+/* DIAPOSITIVAS AUTOMÁTICAS */
+setInterval(() => {
+  slides[slideshowIndex].classList.remove("active");
+  dots[slideshowIndex].classList.remove("active");
+
+  slideshowIndex = (slideshowIndex + 1) % slides.length;
+
+  slides[slideshowIndex].classList.add("active");
+  dots[slideshowIndex].classList.add("active");
+}, 4000);
+
+/* GOOGLE MAPS: ENLACE DIRECTO SEGURO Y ANTI-BLOQUEOS */
+function openMaps(){
+  const mapsUrl = "https://www.google.com/maps";
+  window.open(mapsUrl, "_blank", "noopener,noreferrer");
+}
+
+/* SI ESCRIBE KILÓMETROS, BORRAR CAPTURA */
+document.getElementById("kmInput").addEventListener("input", function(){
+
+  if(this.value.trim() !== ""){
+    clearImage();
+  }
+
+});
+
+/* LIMPIAR CAPTURA Y DATOS OCR */
+function clearImage(){
+
+  imageData = null;
+  ocrDistance = null;
+  ocrText = "";
+
+  document.getElementById("fileInput").value = "";
+  document.getElementById("preview").src = "";
+  document.getElementById("previewWrap").style.display = "none";
+  document.getElementById("resetBtn").style.display = "none";
+  document.getElementById("ocrOverlay").style.display = "none";
+  document.getElementById("progressBar").style.width = "0%";
+}
+
+/* CARGAR Y RECONOCER CAPTURA */
+document.getElementById("fileInput").addEventListener("change", async function(e){
+
+  const file = e.target.files[0];
+  if(!file) return;
+
+  /* AL CARGAR IMAGEN, BORRAR CASILLA DE KM */
+  document.getElementById("kmInput").value = "";
+  document.getElementById("kmInput").placeholder = "Ejemplo: 8.5";
+
+  imageData = await readImage(file);
+  ocrDistance = null;
+  ocrText = "";
+
+  document.getElementById("preview").src = imageData;
+  document.getElementById("previewWrap").style.display = "block";
+  document.getElementById("resetBtn").style.display = "block";
+  document.getElementById("ocrOverlay").style.display = "flex";
+  document.getElementById("ocrText").textContent = "Reconociendo imagen...";
+  document.getElementById("progressBar").style.width = "0%";
+
+  try{
+    const result = await Tesseract.recognize(imageData, "spa+eng", {
+      logger: m => {
+        if(m.status === "recognizing text"){
+          const percent = Math.round((m.progress || 0) * 100);
+
+          document.getElementById("progressBar").style.width = percent + "%";
+          document.getElementById("ocrText").textContent =
+            "Reconociendo imagen... " + percent + "%";
+        }
+      }
+    });
+
+    ocrText = result.data.text || "";
+    ocrDistance = extractDistance(ocrText);
+
+    if(ocrDistance){
+      document.getElementById("ocrText").textContent =
+        "Distancia detectada: " + ocrDistance + " km";
+
+      document.getElementById("kmInput").placeholder =
+        "Detectado: " + ocrDistance + " km";
+
+    }else{
+      document.getElementById("ocrText").textContent =
+        "Imagen reconocida. Ingresa los kilómetros manualmente.";
+    }
+
+  }catch(error){
+    console.error(error);
+    document.getElementById("ocrText").textContent =
+      "No se pudo reconocer. Ingresa los kilómetros manualmente.";
+  }
+
+  setTimeout(()=>{
+    document.getElementById("ocrOverlay").style.display = "none";
+  },1500);
+});
+
+/* LEER IMAGEN */
+function readImage(file){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/* DETECTAR DISTANCIA OCR */
+function extractDistance(text){
+  const normalized = text.replace(/,/g,".");
+
+  const patterns = [
+    /(\d+(?:\.\d+)?)\s*(?:km|kms|kil[oó]metros)\b/i,
+    /\b(?:distancia|recorrido)\s*[:\-]?\s*(\d+(?:\.\d+)?)/i
+  ];
+
+  for(const pattern of patterns){
+    const match = normalized.match(pattern);
+
+    if(match){
+      const value = parseFloat(match[1]);
+
+      if(value > 0 && value < 1000) return value;
+    }
+  }
+
+  return null;
+}
+
+/* TABLA DE TARIFAS */
+function calculatePrice(distance){
+
+  const km = Math.ceil(distance);
+
+  if(km < 1 || km > 25) return null;
+
+  if(km <= 3) return 8900;
+  if(km >= 4 && km <= 7) return 8900 + (km - 3) * 1000;
+  if(km <= 9) return 13900;
+  if(km === 10) return 14900;
+  if(km === 11) return 15900;
+  if(km <= 16) return 16900;
+  if(km <= 20) return 19000;
+
+  return 19000 + (km - 20) * 1000;
+}
+
+/* RANGO DE KILÓMETROS */
+function getKmRange(distance){
+
+  const km = Math.ceil(distance);
+
+  if(km <= 3) return "1 a 3km";
+  if(km === 4) return "4km";
+  if(km === 5) return "5km";
+  if(km === 6) return "6km";
+  if(km === 7) return "7km";
+  if(km <= 9) return "8 a 9km";
+  if(km === 10) return "10km";
+  if(km === 11) return "11km";
+  if(km <= 16) return "12 a 16km";
+  if(km <= 20) return "17 a 20km";
+  if(km <= 25) return km + "km";
+
+  return "Fuera de rango";
+}
+
+/* FORMATO DE DINERO */
+function money(value){
+  return new Intl.NumberFormat("es-CO",{
+    style:"currency",
+    currency:"COP",
+    maximumFractionDigits:0
+  }).format(value);
+}
+
+/* CALCULAR RUTA */
+function calculate(){
+
+  const manualValue = document.getElementById("kmInput").value.trim();
+
+  let distance;
+
+  if(manualValue !== ""){
+    distance = parseFloat(manualValue);
+  }else{
+    distance = ocrDistance;
+  }
+
+  if(!Number.isFinite(distance) || distance <= 0){
+    alert("Por favor, carga una captura con distancia reconocible o ingresa los kilómetros.");
+    return;
+  }
+
+  currentDistance = distance;
+  currentPrice = calculatePrice(distance);
+
+  const resultCard = document.getElementById("resultCard");
+  const overLimit = document.getElementById("overLimit");
+  const shareBtn = document.getElementById("shareBtn");
+
+  document.getElementById("resultKm").textContent =
+    "Rango: " + getKmRange(distance);
+
+  if(currentPrice === null){
+
+    resultCard.style.display = "none";
+    overLimit.style.display = "block";
+    shareBtn.style.display = "none";
+
+  }else{
+
+    resultCard.style.display = "block";
+    overLimit.style.display = "none";
+    shareBtn.style.display = "block";
+
+    document.getElementById("resultPrice").textContent =
+      money(currentPrice);
+  }
+
+  document.getElementById("resultModal").classList.add("show");
+}
+
+/* CERRAR RESULTADO */
+function closeModal(){
+  document.getElementById("resultModal").classList.remove("show");
+}
+
+/* ABRIR CAPTURA AMPLIADA */
+function openImage(){
+
+  if(!imageData) return;
+
+  const win = window.open();
+
+  if(win){
+    win.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Captura del recorrido</title>
+        <style>
+          *{box-sizing:border-box}
+          body{
+            margin:0;
+            background:#000;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            min-height:100vh;
+          }
+          img{
+            max-width:100%;
+            max-height:100vh;
+            object-fit:contain;
+          }
+        </style>
+      </head>
+      <body>
+        <img src="${imageData}">
+      </body>
+      </html>
+    `);
+    win.document.close();
+  }else{
+    alert("El navegador bloqueó la apertura de la imagen.");
+  }
+}
+
+/* CREAR IMAGEN PARA COMPARTIR */
+async function createShareImage(){
+
+  const canvas = document.createElement("canvas");
+  let ctx;
+
+  if(imageData){
+
+    const img = new Image();
+    img.src = imageData;
+
+    await new Promise((resolve,reject)=>{
+      img.onload = resolve;
+      img.onerror = reject;
+    });
+
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+
+    ctx = canvas.getContext("2d");
+    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+
+  }else{
+
+    canvas.width = 900;
+    canvas.height = 1100;
+
+    ctx = canvas.getContext("2d");
+
+    ctx.fillStyle = "#f8f8f5";
+    ctx.fillRect(0,0,900,1100);
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.fillStyle = "#292929";
+    ctx.font = "bold 70px Arial";
+    ctx.fillText("RUTA+",450,190);
+
+    ctx.fillStyle = "#707070";
+    ctx.font = "30px Arial";
+    ctx.fillText("RESUMEN DEL RECORRIDO",450,270);
+
+    ctx.strokeStyle = "#d6d6d0";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(100,330);
+    ctx.lineTo(800,330);
+    ctx.stroke();
+  }
+
+  const width = canvas.width;
+  const height = canvas.height;
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  ctx.fillStyle = "#23834b";
+  ctx.font = `bold ${Math.max(25,width*0.06)}px Arial`;
+
+  ctx.fillText(
+    currentDistance + " km",
+    width/2,
+    height*0.43
+  );
+
+  ctx.fillStyle = "#000000";
+  ctx.font = `bold ${Math.max(28,width*0.075)}px Arial`;
+
+  ctx.fillText(
+    "TOTAL: " + money(currentPrice),
+    width/2,
+    height*0.50
+  );
+
+  ctx.fillStyle = "#23834b";
+  ctx.font = `bold ${Math.max(22,width*0.05)}px Arial`;
+
+  ctx.fillText(
+    "R~T: " + getKmRange(currentDistance),
+    width/2,
+    height*0.57
+  );
+
+  return new Promise(resolve=>{
+    canvas.toBlob(resolve,"image/jpeg",0.95);
+  });
+}
+
+/* COMPARTIR DIRECTAMENTE LA IMAGEN */
+async function shareResult(){
+
+  if(!Number.isFinite(currentDistance) || !Number.isFinite(currentPrice)){
+    alert("Primero debes calcular el precio de la ruta.");
+    return;
+  }
+
+  const shareBtn = document.getElementById("shareBtn");
+
+  shareBtn.disabled = true;
+  shareBtn.textContent = "PREPARANDO IMAGEN...";
+
+  try{
+
+    const blob = await createShareImage();
+
+    if(!blob){
+      throw new Error("No se pudo crear la imagen");
+    }
+
+    const file = new File(
+      [blob],
+      "resumen-ruta.jpg",
+      {type:"image/jpeg"}
+    );
+
+    if(
+      !navigator.share ||
+      !navigator.canShare ||
+      !navigator.canShare({files:[file]})
+    ){
+      alert("Este navegador no permite compartir imágenes directamente. Abre la página en Chrome o en un navegador compatible.");
+      return;
+    }
+
+    await navigator.share({
+      files:[file],
+      title:"Resumen de ruta"
+    });
+
+  }catch(error){
+
+(`No se pudo abrir el menú de compartir.`);
+  }finally{
+
+    shareBtn.disabled = false;
+    shareBtn.textContent = "COMPARTIR IMAGEN";
+  }
+}
+
+/* REINICIAR */
+function resetApp(){
+
+  imageData = null;
+  ocrDistance = null;
+  currentDistance = null;
+  currentPrice = null;
+  ocrText = "";
+
+  document.getElementById("fileInput").value = "";
+  document.getElementById("kmInput").value = "";
+  document.getElementById("kmInput").placeholder = "Ejemplo: 8.5";
+  document.getElementById("preview").src = "";
+  document.getElementById("previewWrap").style.display = "none";
+  document.getElementById("resetBtn").style.display = "none";
+  document.getElementById("ocrOverlay").style.display = "none";
+  document.getElementById("resultModal").classList.remove("show");
+}
+</script>
+
+</body>
+</html>
